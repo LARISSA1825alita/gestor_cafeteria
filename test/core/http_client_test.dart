@@ -117,6 +117,18 @@ void main() {
       await expectLater(api.get('/orders'), throwsA(isA<NetworkFailure>()));
     });
 
-   
+    test('7. Redirección: un 300 no es éxito y lanza UnexpectedFailure', () async {
+      final mock = MockClient((request) async {
+        return http.Response('', 300);
+      });
+      final api = ApiClient(client: mock, baseUrl: 'http://prueba');
+
+      await expectLater(
+        api.get('/orders'),
+        throwsA(
+          isA<UnexpectedFailure>().having((f) => f.statusCode, 'statusCode', 300),
+        ),
+      );
+    });
   });
 }
