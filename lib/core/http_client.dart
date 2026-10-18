@@ -62,13 +62,13 @@ class ApiClient {
 
   //Convierte el codigo de estado en el Failure correspondiente
   Failure _mapFailure(int code, dynamic json) {
-    //detail puede ser texto (404, 409, simulados) o null (no JSON)
+    //detail puede ser texto (404, 409, simulados), lista (422) o null (no JSON)
     final detail = json is Map ? json['detail'] : null;
 
     return switch (code) {
       404 => NotFoundFailure(_mensaje(detail, code)),
       409 => ConflictFailure(_mensaje(detail, code)),
-      422 => const ValidationFailure({}),
+      422 => ValidationFailure(_campos(detail)),
       >= 500 && < 600 => ServerFailure(code),
       _ => UnexpectedFailure(code, _mensaje(detail, code)),
     };
@@ -78,6 +78,20 @@ class ApiClient {
   String _mensaje(dynamic detail, int code) {
     if (detail is String && detail.isNotEmpty) return detail;
     return 'Error inesperado ($code)';
+  }
+
+  //Extrae los campos de un 422: clave = loc[1], valor = msg
+  //Ejemplo: {"detail": [{"loc": ["body", "customer"], "msg": "..."}]}
+  Map<String, String> _campos(dynamic detail) {
+    final fields = <String, String>{};
+    if (detail is! List) return fields;
+    for (final error in detail) {
+      if (error is! Map) continue;
+      final loc = error['loc'];
+      final campo = loc is List && loc.length > 1 ? '${loc[1]}' : 'general';
+      fields[campo] = '${error['msg'] ?? ''}';
+    }
+    return fields;
   }
 
   dynamic _tryDecode(http.Response response) {
